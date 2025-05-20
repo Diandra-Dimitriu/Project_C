@@ -94,40 +94,38 @@ public:
     int getDateYear() const { return date.year; }
 };
 void storeToCSV(const std::string& filename, const Report& report) {
-    // Try to read the file and count how many headers ("header 1", ..., "header 6") are present
+    // Try to read the file and count how many rows (excluding header) are present
     std::ifstream infile(filename);
-    int headerCount = 0;
-    std::vector<std::string> lines;
+    int rowCount = 0;
     std::string line;
-    while (std::getline(infile, line)) {
-        lines.push_back(line);
-        if (line.find("header ") == 0) {
-            ++headerCount;
+    // Read header if exists
+    if (std::getline(infile, line)) {
+        // Count the number of data rows
+        while (std::getline(infile, line)) {
+            if (!line.empty()) ++rowCount;
         }
     }
     infile.close();
 
-    if (headerCount >= 6) {
-        std::cout << "All 6 headers are filled. Cannot write more reports.\n";
+    if (rowCount >= 6) {
+        std::cout << "All 6 rows are filled. Cannot write more reports.\n";
         return;
     }
 
-    // Prepare the new header and report line
-    std::ostringstream oss;
-    oss << "header " << (headerCount + 1) << "\n";
-    oss << report.getIncidentName() << ","
-        << report.getIncidentQuantity() << ","
-        << report.getIncidentLocation() << ","
-        << report.getDateDay() << "." << report.getDateMonth() << "." << report.getDateYear()
-        << "\n";
-
-    // Append the new header and report to the file
-    std::ofstream outfile(filename, std::ios::app);
-    if (!outfile) {
-        std::cerr << "Error opening file!\n";
-        return;
+    // If file is empty, write header as 1,2,3,4
+    std::ofstream outfile;
+    if (rowCount == 0) {
+        outfile.open(filename, std::ios::app);
+        outfile << "1,2,3,4\n";
+        outfile.close();
     }
-    outfile << oss.str();
+
+    // Write the report as: name,quantity,location,date
+    outfile.open(filename, std::ios::app);
+    outfile << report.getIncidentName() << ","
+           << report.getIncidentQuantity() << ","
+           << report.getIncidentLocation() << ","
+           << report.getDateDay() << "." << report.getDateMonth() << "." << report.getDateYear() << "\n";
     outfile.close();
 }
 void readFromCSV(const std::string& filename) {
@@ -151,28 +149,24 @@ void readFromCSV(const std::string& filename) {
         headers.push_back(header);
     }
 
-    // Print only under the headers where data is present
+    // Print each report row as: name, quantity, location, date
+    int row = 1;
     while (std::getline(file, line)) {
         if (line.empty()) continue;
         std::vector<std::string> fields;
-        std::string field;
         size_t start = 0, end = 0;
-        // Custom CSV parsing to handle fields with spaces and preserve them
         while ((end = line.find(',', start)) != std::string::npos) {
-            field = line.substr(start, end - start);
-            fields.push_back(field); // Do not trim or split on spaces
+            fields.push_back(line.substr(start, end - start));
             start = end + 1;
         }
-        // Last field (after last comma)
-        field = line.substr(start);
-        fields.push_back(field);
-        // Only print fields that are not empty and under a header
+        fields.push_back(line.substr(start));
+        std::cout << "Report " << row << ":\n";
         for (size_t i = 0; i < headers.size() && i < fields.size(); ++i) {
             std::cout << headers[i] << ": " << fields[i] << "\n";
         }
         e();
+        ++row;
     }
-
     file.close();
 }
 
@@ -182,61 +176,62 @@ void deleteFromCSV(const std::string& filename, const std::string& incidentName,
         std::cerr << "Error opening file!\n";
         return;
     }
-    std::vector<std::string> lines;
+    std::vector<std::string> rows;
     std::string line;
-    int headerCount = 0;
-    int deleteIndex = -1;
-    std::vector<std::string> reportLines;
-    // Read all lines and find the report to delete
+    // Read header
+    if (!std::getline(infile, line)) {
+        std::cerr << "Error reading file!\n";
+        return;
+    }
+    std::string header = line;
+    // Read all report rows
     while (std::getline(infile, line)) {
-        if (line.find("header ") == 0) {
-            ++headerCount;
-            reportLines.push_back(line); // header line
-            std::getline(infile, line); // column header
-            reportLines.push_back(line);
-            std::getline(infile, line); // report line
-            // Parse the report line
-            std::stringstream ss(line);
-            std::string name, quantityStr, location, dateStr;
-            std::getline(ss, name, ',');
-            std::getline(ss, quantityStr, ',');
-            std::getline(ss, location, ',');
-            std::getline(ss, dateStr);
+        if (!line.empty()) rows.push_back(line);
+    }
+    infile.close();
+
+    // Find the row to delete
+    int deleteIndex = -1;
+    for (size_t i = 0; i < rows.size(); ++i) {
+        std::vector<std::string> fields;
+        size_t start = 0, end = 0;
+        while ((end = rows[i].find(',', start)) != std::string::npos) {
+            fields.push_back(rows[i].substr(start, end - start));
+            start = end + 1;
+        }
+        fields.push_back(rows[i].substr(start));
+        if (fields.size() == 4) {
+            std::string name = fields[0];
+            std::string location = fields[2];
+            std::string dateStr = fields[3];
             int d, m, y;
             char dot1, dot2;
             std::stringstream dateSS(dateStr);
             dateSS >> d >> dot1 >> m >> dot2 >> y;
             if (name == incidentName && location == incidentLocation && d == day && m == month && y == year) {
-                deleteIndex = headerCount - 1;
-                // Skip adding this report to lines (delete it)
-                continue;
+                deleteIndex = static_cast<int>(i);
+                break;
             }
-            lines.push_back(reportLines[reportLines.size() - 2]); // header
-            lines.push_back(reportLines[reportLines.size() - 1]); // column header
-            lines.push_back(line); // report line
         }
     }
-    infile.close();
     if (deleteIndex == -1) {
         std::cout << "Incident not found in CSV.\n";
         return;
     }
-    // Now, shift all headers after deleteIndex to the left
+    // Remove the row and shift left
+    rows.erase(rows.begin() + deleteIndex);
+    // Write back to file
     std::ofstream outfile(filename, std::ios::trunc);
     if (!outfile) {
         std::cerr << "Error opening file for writing!\n";
         return;
     }
-    int currentHeader = 1;
-    for (size_t i = 0; i < lines.size(); i += 3) {
-        if (static_cast<int>(i / 3) == deleteIndex) continue; // skip deleted
-        outfile << "header " << currentHeader << "\n";
-        outfile << lines[i + 1] << "\n";
-        outfile << lines[i + 2] << "\n";
-        ++currentHeader;
+    outfile << header << "\n";
+    for (const auto& row : rows) {
+        outfile << row << "\n";
     }
     outfile.close();
-    std::cout << "Incident deleted from CSV and headers shifted.\n";
+    std::cout << "Incident deleted from CSV.\n";
 }
 void modifyInCSV(const std::string& filename, const std::string& incidentName, const std::string& incidentLocation, int day, int month, int year, const std::string& newLocation, const std::string& newName, int newQuantity, int newDay, int newMonth, int newYear) {
     std::ifstream infile(filename);
@@ -244,68 +239,61 @@ void modifyInCSV(const std::string& filename, const std::string& incidentName, c
         std::cerr << "Error opening file!\n";
         return;
     }
-    std::vector<std::string> lines;
+    std::vector<std::string> rows;
     std::string line;
-    int headerCount = 0;
-    int modifyIndex = -1;
-    std::vector<std::string> reportLines;
-    // Read all lines and find the report to modify
+    // Read header
+    if (!std::getline(infile, line)) {
+        std::cerr << "Error reading file!\n";
+        return;
+    }
+    std::string header = line;
+    // Read all report rows
     while (std::getline(infile, line)) {
-        if (line.find("header ") == 0) {
-            ++headerCount;
-            reportLines.push_back(line); // header line
-            std::getline(infile, line); // column header
-            reportLines.push_back(line);
-            std::getline(infile, line); // report line
-            // Parse the report line
-            std::stringstream ss(line);
-            std::string name, quantityStr, location, dateStr;
-            std::getline(ss, name, ',');
-            std::getline(ss, quantityStr, ',');
-            std::getline(ss, location, ',');
-            std::getline(ss, dateStr);
-            int quantity = std::stoi(quantityStr);
+        if (!line.empty()) rows.push_back(line);
+    }
+    infile.close();
+
+    // Find the row to modify
+    int modifyIndex = -1;
+    for (size_t i = 0; i < rows.size(); ++i) {
+        std::vector<std::string> fields;
+        size_t start = 0, end = 0;
+        while ((end = rows[i].find(',', start)) != std::string::npos) {
+            fields.push_back(rows[i].substr(start, end - start));
+            start = end + 1;
+        }
+        fields.push_back(rows[i].substr(start));
+        if (fields.size() == 4) {
+            std::string name = fields[0];
+            std::string location = fields[2];
+            std::string dateStr = fields[3];
             int d, m, y;
             char dot1, dot2;
             std::stringstream dateSS(dateStr);
             dateSS >> d >> dot1 >> m >> dot2 >> y;
             if (name == incidentName && location == incidentLocation && d == day && m == month && y == year) {
-                // Found the report to modify
-                Incident incident(location, name, quantity);
-                Date date(d, m, y);
-                Report report(incident, date);
-                report.modifyReport(&report, newLocation, newName, newQuantity, newDay, newMonth, newYear);
-                std::ostringstream oss;
-                oss << report.getIncidentName() << ","
-                    << report.getIncidentQuantity() << ","
-                    << report.getIncidentLocation() << ","
-                    << report.getDateDay() << "." << report.getDateMonth() << "." << report.getDateYear();
-                lines.push_back(reportLines[reportLines.size() - 2]); // header
-                lines.push_back(reportLines[reportLines.size() - 1]); // column header
-                lines.push_back(oss.str()); // modified report line
-                modifyIndex = headerCount - 1;
-                continue;
+                modifyIndex = static_cast<int>(i);
+                break;
             }
-            lines.push_back(reportLines[reportLines.size() - 2]); // header
-            lines.push_back(reportLines[reportLines.size() - 1]); // column header
-            lines.push_back(line); // report line
         }
     }
-    infile.close();
     if (modifyIndex == -1) {
         std::cout << "Incident not found in CSV.\n";
         return;
     }
-    // Write all lines back to the file
+    // Modify the row
+    std::ostringstream oss;
+    oss << newName << "," << newQuantity << "," << newLocation << "," << newDay << "." << newMonth << "." << newYear;
+    rows[modifyIndex] = oss.str();
+    // Write back to file
     std::ofstream outfile(filename, std::ios::trunc);
     if (!outfile) {
         std::cerr << "Error opening file for writing!\n";
         return;
     }
-    for (size_t i = 0; i < lines.size(); i += 3) {
-        outfile << lines[i] << "\n";
-        outfile << lines[i + 1] << "\n";
-        outfile << lines[i + 2] << "\n";
+    outfile << header << "\n";
+    for (const auto& row : rows) {
+        outfile << row << "\n";
     }
     outfile.close();
     std::cout << "Incident modified in CSV.\n";
@@ -345,8 +333,8 @@ int main(int argc, char* argv[]) {
         int incident_day = std::stoi(argv[4]);
         int incident_month = std::stoi(argv[5]);
         int incident_year = std::stoi(argv[6]);
-        std::string new_location = argv[7];
         std::string new_name = argv[8];
+        std::string new_location = argv[7];
         int new_quantity = std::stoi(argv[9]);
         int new_day = std::stoi(argv[10]);
         int new_month = std::stoi(argv[11]);
