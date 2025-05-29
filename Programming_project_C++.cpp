@@ -24,7 +24,7 @@ void usage() {
     std::cout << "Operations:\n";
     std::cout << "  add_incident <incident_name> <incident_number> <incident_location> <incident_day> <incident_month> <incident_year>\n";
     std::cout << "  delete_incident <incident_name> <incident_location> <incident_day> <incident_month> <incident_year>\n";
-    std::cout << "  modify_incident <incident_number> <new_location> <new_name> <new_quantity> <new_day> <new_month> <new_year>\n";
+    std::cout << "  modify_incident <incident_name> <incident_location> <incident_day> <incident_month> <incident_year> <new_name> <new_location> <new_quantity> <new_day> <new_month> <new_year>\n";
     std::cout << "  view_incidents\n";
 }
 class Incident { // Incident class
