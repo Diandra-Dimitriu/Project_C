@@ -24,7 +24,7 @@ void usage() {
     std::cout << "Operations:\n";
     std::cout << "  add_incident <incident_name> <incident_number> <incident_location> <incident_day> <incident_month> <incident_year>\n";
     std::cout << "  delete_incident <incident_name> <incident_location> <incident_day> <incident_month> <incident_year>\n";
-    std::cout << "  modify_incident <incident_name> <incident_location> <incident_day> <incident_month> <incident_year> <new_name> <new_location> <new_quantity> <new_day> <new_month> <new_year>\n";
+    std::cout << "  modify_incident <incident_name> <incident_location> <incident_day> <incident_month> <incident_year> <new_name> <new_quantity> <new_location> <new_day> <new_month> <new_year>\n";
     std::cout << "  view_incidents\n";
 }
 class Incident { // Incident class
@@ -333,9 +333,9 @@ int main(int argc, char* argv[]) {
         int incident_day = std::stoi(argv[4]);
         int incident_month = std::stoi(argv[5]);
         int incident_year = std::stoi(argv[6]);
-        std::string new_name = argv[8];
-        std::string new_location = argv[7];
-        int new_quantity = std::stoi(argv[9]);
+        std::string new_name = argv[7];
+        int new_quantity = std::stoi(argv[8]);
+        std::string new_location = argv[9];
         int new_day = std::stoi(argv[10]);
         int new_month = std::stoi(argv[11]);
         int new_year = std::stoi(argv[12]);
