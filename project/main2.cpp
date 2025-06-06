@@ -31,7 +31,11 @@ int main(int argc, char* argv[]) {
     };
 
     if (argc < 2) {
-        std::cout << "Usage: <app_name> <operation> [...]\n";
+        std::cout << "Usage:\n";
+        std::cout << CYAN <<"  view_all\n" << RESET;
+        std::cout << CYAN <<"  filter <name> [location] [day|month|year] <value>\n" << RESET;
+        std::cout << CYAN << "  delete_incident <name> <location> <day> <month> <year>\n" << RESET;
+        std::cout << CYAN << "  modify_incident <name> <location> <day> <month> <year> <new_name> <new_quantity> <new_location> <new_day> <new_month> <new_year>\n"<< RESET;
         return 1;
     }
 
@@ -189,7 +193,7 @@ int main(int argc, char* argv[]) {
     else {
         std::cout << RED << "Invalid operation. Use:" << RESET << "\n";
         std::cout << CYAN << "  view_all\n" << RESET;
-        std::cout << CYAN << "  filter <name> <location> [day|month|year] <value>\n" << RESET;
+        std::cout << CYAN << "  filter <name> [location] [day|month|year] <value>\n" << RESET;
         std::cout << YELLOW << "  delete_incident <name> <location> <day> <month> <year>\n" << RESET;
         std::cout << GREEN << "  modify_incident <name> <location> <day> <month> <year> <new_name> <new_quantity> <new_location> <new_day> <new_month> <new_year>\n" << RESET;
         return 1;
